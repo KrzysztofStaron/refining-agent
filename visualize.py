@@ -106,14 +106,14 @@ def main():
     n = len(results)
     n_brain_cols = len(VIEWS)
     # layout: text col | brain views cols | score col
-    col_ratios = [3] + [1.2] * n_brain_cols + [0.7]
+    col_ratios = [4] + [1.2] * n_brain_cols + [0.9]
     total_cols = 1 + n_brain_cols + 1
 
-    fig = plt.figure(figsize=(4 + 1.5 * n_brain_cols * n, 2.8 * n), facecolor="#0f0f0f")
+    fig = plt.figure(figsize=(4 + 1.5 * n_brain_cols * n, 3.2 * n), facecolor="#0f0f0f")
     fig.text(
-        0.5, 0.97,
+        0.5, 0.98,
         "X Post Brain Activation Optimizer",
-        ha="center", va="top", fontsize=16, fontweight="bold",
+        ha="center", va="top", fontsize=30, fontweight="bold",
         color="white", fontfamily="monospace",
     )
 
@@ -139,15 +139,15 @@ def main():
         ax_text.set_yticks([])
 
         rank_label = f"#{r['rank']} {'👑 WINNER' if is_winner else ''}"
-        ax_text.text(0.5, 0.92, rank_label, transform=ax_text.transAxes,
-                     ha="center", va="top", fontsize=9, fontweight="bold",
+        ax_text.text(0.5, 0.93, rank_label, transform=ax_text.transAxes,
+                     ha="center", va="top", fontsize=18, fontweight="bold",
                      color="#f5c518" if is_winner else "#888888", fontfamily="monospace")
-        ax_text.text(0.5, 0.82, r["label"], transform=ax_text.transAxes,
-                     ha="center", va="top", fontsize=7, color="#aaaaaa", fontfamily="monospace")
+        ax_text.text(0.5, 0.80, r["label"], transform=ax_text.transAxes,
+                     ha="center", va="top", fontsize=13, color="#aaaaaa", fontfamily="monospace")
 
-        wrapped = "\n".join(textwrap.wrap(r["post"], width=42))
-        ax_text.text(0.5, 0.68, wrapped, transform=ax_text.transAxes,
-                     ha="center", va="top", fontsize=8,
+        wrapped = "\n".join(textwrap.wrap(r["post"], width=34))
+        ax_text.text(0.5, 0.65, wrapped, transform=ax_text.transAxes,
+                     ha="center", va="top", fontsize=16,
                      color="white", wrap=True, linespacing=1.4)
 
         # brain views
@@ -173,17 +173,17 @@ def main():
         ax_score.set_xticks([])
         ax_score.set_yticks([])
         ax_score.text(0.5, 0.6, f"{r['score']:.4f}", transform=ax_score.transAxes,
-                      ha="center", va="center", fontsize=11, fontweight="bold",
+                      ha="center", va="center", fontsize=20, fontweight="bold",
                       color="#f5c518" if is_winner else "#dddddd", fontfamily="monospace")
         ax_score.text(0.5, 0.35, "brain\nscore", transform=ax_score.transAxes,
-                      ha="center", va="center", fontsize=6, color="#666666", fontfamily="monospace")
+                      ha="center", va="center", fontsize=11, color="#666666", fontfamily="monospace")
 
     # colorbar
     sm = plt.cm.ScalarMappable(cmap="hot", norm=plt.Normalize(vmin=vmin, vmax=vmax))
     cbar_ax = fig.add_axes([0.985, 0.1, 0.008, 0.5])
     cbar = fig.colorbar(sm, cax=cbar_ax)
-    cbar.ax.tick_params(colors="white", labelsize=6)
-    cbar.set_label("activation", color="white", fontsize=7)
+    cbar.ax.tick_params(colors="white", labelsize=11)
+    cbar.set_label("activation", color="white", fontsize=14)
 
     out_path = "brain_optimizer.png"
     fig.savefig(out_path, dpi=150, bbox_inches="tight", facecolor=fig.get_facecolor())
