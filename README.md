@@ -6,7 +6,7 @@ This is an experiment built on top of [TRIBE v2](https://github.com/facebookrese
 
 The hypothesis: **a post that triggers stronger, broader brain activity might be more engaging.**
 
-![Brain activation ranking of post variants](brain_optimizer.png)
+![Brain activation ranking of post variants](x/brain_optimizer.png)
 
 *Real output: 5 variants of the same post, ranked by predicted cortical activation. The winner (gold) scored 0.1079; each row shows left, right, and top-down views of the predicted brain response.*
 
