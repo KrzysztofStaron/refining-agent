@@ -87,7 +87,10 @@ def render(json_path: str = "results.json", out_path: str = "brain_optimizer.png
         ax_text.text(0.5, 0.80, r["label"], transform=ax_text.transAxes,
                      ha="center", va="top", fontsize=13, color="#aaaaaa", fontfamily="monospace")
 
-        wrapped = "\n".join(textwrap.wrap(r["post"], width=34))
+        post_text = r["post"]
+        if len(post_text) > 200:
+            post_text = post_text[:199].rstrip() + "…"
+        wrapped = "\n".join(textwrap.wrap(post_text, width=34))
         ax_text.text(0.5, 0.65, wrapped, transform=ax_text.transAxes,
                      ha="center", va="top", fontsize=16,
                      color="white", wrap=True, linespacing=1.4)
