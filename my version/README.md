@@ -91,7 +91,7 @@ The winner gets a gold border 👑, and the color scale is shared across all bra
 - The 8-bit quantization slightly degrades Llama's representations vs. the original float16 setup Meta used.
 - Short text (< 2 sentences) produces very few timesteps, making scores less stable.
 
-That said — it's a genuinely novel way to think about content optimization, and the brain visualizations are cool.
+That said brain visualizations are cool.
 
 ---
 
