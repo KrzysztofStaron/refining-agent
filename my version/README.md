@@ -42,7 +42,17 @@ Winner + visualization
 | File | Description |
 |------|-------------|
 | `optimizer.py` | Terminal version — prints ranked variants with scores |
-| `visualize.py` | Full visual output — generates `brain_optimizer.png` |
+| `visualize.py` | Runs generation + TRIBE v2 inference, saves results to `results.json`, then renders the PNG (needs GPU) |
+| `render.py` | Draws `brain_optimizer.png` from `results.json` — no GPU, no model load, so you can re-style endlessly |
+| `results.json` | Cached output: posts, scores, and per-vertex brain activations |
+
+The pipeline is split in two so the expensive part (GPU inference) runs once and writes `results.json`; tweaking the figure only re-runs `render.py`:
+
+```bash
+python visualize.py          # generate + score + render  (GPU)
+python render.py             # re-draw from results.json   (no GPU)
+python render.py results.json my_render.png   # custom paths
+```
 
 ---
 
