@@ -138,7 +138,7 @@ def main():
         ax_text.set_xticks([])
         ax_text.set_yticks([])
 
-        rank_label = f"#{r['rank']} {'👑 WINNER' if is_winner else ''}"
+        rank_label = f"#{r['rank']} {'WINNER' if is_winner else ''}"
         ax_text.text(0.5, 0.93, rank_label, transform=ax_text.transAxes,
                      ha="center", va="top", fontsize=18, fontweight="bold",
                      color="#f5c518" if is_winner else "#888888", fontfamily="monospace")
