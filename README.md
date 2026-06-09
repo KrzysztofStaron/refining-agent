@@ -6,6 +6,10 @@ This is an experiment built on top of [TRIBE v2](https://github.com/facebookrese
 
 The hypothesis: **a post that triggers stronger, broader brain activity might be more engaging.**
 
+![Brain activation ranking of post variants](brain_optimizer.png)
+
+*Real output: 5 variants of the same post, ranked by predicted cortical activation. The winner (gold) scored 0.1079; each row shows left, right, and top-down views of the predicted brain response.*
+
 ---
 
 ## How it works
@@ -38,7 +42,17 @@ Winner + visualization
 | File | Description |
 |------|-------------|
 | `optimizer.py` | Terminal version — prints ranked variants with scores |
-| `visualize.py` | Full visual output — generates `brain_optimizer.png` |
+| `visualize.py` | Runs generation + TRIBE v2 inference, saves results to `results.json`, then renders the PNG (needs GPU) |
+| `render.py` | Draws `brain_optimizer.png` from `results.json` — no GPU, no model load, so you can re-style endlessly |
+| `results.json` | Cached output: posts, scores, and per-vertex brain activations |
+
+The pipeline is split in two so the expensive part (GPU inference) runs once and writes `results.json`; tweaking the figure only re-runs `render.py`:
+
+```bash
+python visualize.py          # generate + score + render  (GPU)
+python render.py             # re-draw from results.json   (no GPU)
+python render.py results.json my_render.png   # custom paths
+```
 
 ---
 
@@ -68,21 +82,15 @@ Get Llama access at [huggingface.co/meta-llama/Llama-3.2-3B](https://huggingface
 
 ## Output
 
-`brain_optimizer.png` — a dark-themed panel showing every variant ranked by brain score:
+`visualize.py` produces [`brain_optimizer.png`](brain_optimizer.png) (shown at the top) — a dark-themed panel showing every variant ranked by brain score. Each row contains:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  #1 👑 WINNER                                               │
-│  "Just shipped something that rewires how you..."           │
-│  [left brain] [right brain] [top brain]      score: 0.0842 │
-├─────────────────────────────────────────────────────────────┤
-│  #2 VARIANT 3                                               │
-│  "Productivity will never look the same after..."           │
-│  [left brain] [right brain] [top brain]      score: 0.0761 │
-...
-```
+- the post text
+- left / right / top-down views of the predicted cortical activation
+- the brain score (mean absolute activation)
 
-The color scale is shared across all brains so activations are directly comparable.
+The winner gets a gold border 👑, and the color scale is shared across all brains so activations are directly comparable.
+
+`brain.png` and `brain_2.png` are single-post brain maps from earlier runs.
 
 ---
 
