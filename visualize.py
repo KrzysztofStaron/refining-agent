@@ -1,0 +1,198 @@
+import tempfile
+import os
+import textwrap
+import requests
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+from matplotlib.patches import FancyBboxPatch
+import neuralset.extractors.text as _t
+
+OPENROUTER_TOKEN = "YOUR_TOKEN_HERE"
+N_VARIANTS = 4
+ORIGINAL_POST = "Just shipped a new feature that will change how you think about productivity. Thread 🧵"
+VIEWS = ["left", "right", "dorsal"]
+
+
+def _patched_load(self):
+    from transformers import AutoModel, AutoModelForCausalLM
+    is_causal = any(x in self.model_name for x in ["Llama", "Phi-3", "gpt", "opt"])
+    Model = AutoModelForCausalLM if is_causal else AutoModel
+    model = Model.from_pretrained(self.model_name, load_in_8bit=True, device_map="auto")
+    model.eval()
+    return model
+
+_t.HuggingFaceText._load_model = _patched_load
+
+
+def generate_variants(post: str, n: int) -> list[str]:
+    print(f"Generating {n} variants via OpenRouter...")
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {OPENROUTER_TOKEN}"},
+        json={
+            "model": "anthropic/claude-haiku-4-5",
+            "messages": [{"role": "user", "content": (
+                f"Generate {n} different variants of this X (Twitter) post. "
+                "Each variant should have a different tone, hook, or structure "
+                "but convey the same core message. "
+                "Return ONLY the variants, one per line, no numbering, no extra text.\n\n"
+                f"Original post:\n{post}"
+            )}],
+        },
+    )
+    response.raise_for_status()
+    text = response.json()["choices"][0]["message"]["content"]
+    return [line.strip() for line in text.strip().splitlines() if line.strip()][:n]
+
+
+def get_activation(post: str, tribe) -> tuple[np.ndarray, float]:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        f.write(post)
+        tmp_path = f.name
+    try:
+        df = tribe.get_events_dataframe(text_path=tmp_path)
+        preds, _ = tribe.predict(events=df, verbose=False)
+        avg = preds.mean(axis=0)
+        score = float(np.mean(np.abs(avg)))
+        return avg, score
+    finally:
+        os.unlink(tmp_path)
+
+
+def render_brain_to_axes(signals, axes, views, vmin, vmax):
+    from tribev2.plotting.cortical import PlotBrainNilearn
+    plotter = PlotBrainNilearn()
+    plotter.plot_surf(
+        signals,
+        axes=axes,
+        views=views,
+        cmap="hot",
+        vmin=vmin,
+        vmax=vmax,
+        norm_percentile=1,
+    )
+
+
+def main():
+    from tribev2 import TribeModel
+
+    print("Loading TRIBE v2...")
+    tribe = TribeModel.from_pretrained("facebook/tribev2", cache_folder="./cache")
+
+    variants = generate_variants(ORIGINAL_POST, N_VARIANTS)
+    all_posts = [ORIGINAL_POST] + variants
+    labels = ["ORIGINAL"] + [f"VARIANT {i+1}" for i in range(len(variants))]
+
+    print("Scoring posts...")
+    results = []
+    for label, post in zip(labels, all_posts):
+        print(f"  {label}...")
+        avg, score = get_activation(post, tribe)
+        results.append({"label": label, "post": post, "activation": avg, "score": score})
+
+    # sort by score descending
+    results.sort(key=lambda x: x["score"], reverse=True)
+    for i, r in enumerate(results):
+        r["rank"] = i + 1
+
+    # global vmin/vmax for consistent colormap across all brains
+    all_acts = np.stack([r["activation"] for r in results])
+    vmax = float(np.percentile(np.abs(all_acts), 99))
+    vmin = 0.0
+
+    n = len(results)
+    n_brain_cols = len(VIEWS)
+    # layout: text col | brain views cols | score col
+    col_ratios = [3] + [1.2] * n_brain_cols + [0.7]
+    total_cols = 1 + n_brain_cols + 1
+
+    fig = plt.figure(figsize=(4 + 1.5 * n_brain_cols * n, 2.8 * n), facecolor="#0f0f0f")
+    fig.text(
+        0.5, 0.97,
+        "X Post Brain Activation Optimizer",
+        ha="center", va="top", fontsize=16, fontweight="bold",
+        color="white", fontfamily="monospace",
+    )
+
+    outer = gridspec.GridSpec(n, 1, figure=fig, hspace=0.15, top=0.93, bottom=0.03, left=0.02, right=0.98)
+
+    for row_idx, r in enumerate(results):
+        inner = gridspec.GridSpecFromSubplotSpec(
+            1, total_cols, subplot_spec=outer[row_idx],
+            width_ratios=col_ratios, wspace=0.02,
+        )
+
+        is_winner = r["rank"] == 1
+        border_color = "#f5c518" if is_winner else "#2a2a2a"
+        bg_color = "#1a1a1a" if is_winner else "#141414"
+
+        # text panel
+        ax_text = fig.add_subplot(inner[0])
+        ax_text.set_facecolor(bg_color)
+        for spine in ax_text.spines.values():
+            spine.set_edgecolor(border_color)
+            spine.set_linewidth(2 if is_winner else 0.5)
+        ax_text.set_xticks([])
+        ax_text.set_yticks([])
+
+        rank_label = f"#{r['rank']} {'👑 WINNER' if is_winner else ''}"
+        ax_text.text(0.5, 0.92, rank_label, transform=ax_text.transAxes,
+                     ha="center", va="top", fontsize=9, fontweight="bold",
+                     color="#f5c518" if is_winner else "#888888", fontfamily="monospace")
+        ax_text.text(0.5, 0.82, r["label"], transform=ax_text.transAxes,
+                     ha="center", va="top", fontsize=7, color="#aaaaaa", fontfamily="monospace")
+
+        wrapped = "\n".join(textwrap.wrap(r["post"], width=42))
+        ax_text.text(0.5, 0.68, wrapped, transform=ax_text.transAxes,
+                     ha="center", va="top", fontsize=8,
+                     color="white", wrap=True, linespacing=1.4)
+
+        # brain views
+        brain_axes = []
+        for col_i in range(n_brain_cols):
+            ax_b = fig.add_subplot(inner[1 + col_i], projection="3d")
+            ax_b.set_facecolor("#0f0f0f")
+            brain_axes.append(ax_b)
+
+        render_brain_to_axes(r["activation"], brain_axes, VIEWS, vmin, vmax)
+
+        if is_winner:
+            for ax_b in brain_axes:
+                for spine in ax_b.spines.values():
+                    spine.set_edgecolor("#f5c518")
+
+        # score panel
+        ax_score = fig.add_subplot(inner[-1])
+        ax_score.set_facecolor(bg_color)
+        for spine in ax_score.spines.values():
+            spine.set_edgecolor(border_color)
+            spine.set_linewidth(2 if is_winner else 0.5)
+        ax_score.set_xticks([])
+        ax_score.set_yticks([])
+        ax_score.text(0.5, 0.6, f"{r['score']:.4f}", transform=ax_score.transAxes,
+                      ha="center", va="center", fontsize=11, fontweight="bold",
+                      color="#f5c518" if is_winner else "#dddddd", fontfamily="monospace")
+        ax_score.text(0.5, 0.35, "brain\nscore", transform=ax_score.transAxes,
+                      ha="center", va="center", fontsize=6, color="#666666", fontfamily="monospace")
+
+    # colorbar
+    sm = plt.cm.ScalarMappable(cmap="hot", norm=plt.Normalize(vmin=vmin, vmax=vmax))
+    cbar_ax = fig.add_axes([0.985, 0.1, 0.008, 0.5])
+    cbar = fig.colorbar(sm, cax=cbar_ax)
+    cbar.ax.tick_params(colors="white", labelsize=6)
+    cbar.set_label("activation", color="white", fontsize=7)
+
+    out_path = "brain_optimizer.png"
+    fig.savefig(out_path, dpi=150, bbox_inches="tight", facecolor=fig.get_facecolor())
+    print(f"\nSaved {out_path}")
+
+    winner = results[0]
+    print(f"\n🏆 Winner: {winner['label']} (score={winner['score']:.4f})")
+    print(f"   {winner['post']}")
+
+
+if __name__ == "__main__":
+    main()
